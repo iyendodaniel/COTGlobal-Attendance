@@ -23,7 +23,7 @@ A web-based system built with **Django** to manage member profiles, track church
 
 * **Backend**: Python, Django
 * **Frontend**: HTML, CSS, JavaScript
-* **Database**: SQLite (can switch to PostgreSQL)
+* **Database**: SQLite
 * **Version Control**: Git & GitHub
 
 ---
