@@ -588,11 +588,6 @@ def download_page(request):
 
 
 def download(request):
-    # access = request.session.get('access_level')
-    # if not access:
-    #     return redirect('check_passcode')  # force passcode first
-    
-
     selected_role = request.POST.get("role") if request.method=="POST" else ""
     selected_department = request.POST.get("department") if request.method=="POST" else ""
     selected_year = None
@@ -621,7 +616,20 @@ def download(request):
         "Ushering Team", "Welfare Team", "Yoruba Church"
     ]
 
+    access = request.session.get('access_level')
 
+    if access != "admin":
+        error_message = "You are not allowed to download files!"
+        return render(request, "attendance/download.html", {
+            "departments": departments,
+            "selected_role": selected_role,
+            "selected_department": selected_department,
+            "selected_year": selected_year,
+            "selected_month": selected_month,
+            "error_message": error_message
+        })
+    
+    
     # Generate Sundays for the selected month/year
     attendance_dates = []
     if selected_year:
@@ -640,155 +648,19 @@ def download(request):
 
     attendance_dates.sort()
 
-    access = request.session.get('access_level')
-    if access == 'children':
-        if selected_role == "Child":
-            members = Member.objects.filter(role="Child")
-        elif selected_role == "Teen":
-            error_message = "You are not an admin!"
-            return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
-        elif selected_role == "Worker":
-            error_message = "You are not an admin!"
-            return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
-        elif selected_role == "New_Member":
-           error_message = "You are not an admin!"
-           return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
-        else:
-            error_message = "You are not an admin!"
-            return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
 
-    elif access == 'teens':
-        if selected_role == "Teen":
-            members = Member.objects.filter(role="Teen")
-        elif selected_role == "Child":
-            error_message = "You are not an admin!"
-            return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
-        elif selected_role == "Worker":
-            error_message = "You are not an admin!"
-            return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
-        elif selected_role == "New_Member":
-           error_message = "You are not an admin!"
-           return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
-        else:
-            error_message = "You are not an admin!"
-            return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
 
-    elif access == 'workers':
-        if selected_role == "Worker":
-            if selected_department:
-            # Only this department
-                members = Member.objects.filter(role="Worker", department__iexact=selected_department)
-            else:
-            # All departments
-                members = Member.objects.filter(role="Worker")
-        elif selected_role == "Teen":
-            error_message = "You are not an admin!"
-            return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
-        elif selected_role == "Child":
-            error_message = "You are not an admin!"
-            return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
-        elif selected_role == "New_Member":
-           error_message = "You are not an admin!"
-           return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
-        else:
-            error_message = "You are not an admin!"
-            return render(request, "attendance/download.html", {
-            "departments": departments,
-            "selected_role": selected_role,
-            "selected_department": selected_department,
-            "selected_year": selected_year,
-            "selected_month": selected_month,
-            "error_message": error_message
-        })
-    else:
         # Admin can see all
-        if selected_role == "Child":
-            members = Member.objects.filter(role="C")
-        elif selected_role == "Teen":
-            members = Member.objects.filter(role="Teen")
-        elif selected_role == "Worker":
-            members = Member.objects.filter(role="Worker")
-        elif selected_role == "New_Member":
-            members = NewMember.objects.all()
-        else:
-            members = Member.objects.all()
+    if selected_role == "Child":
+        members = Member.objects.filter(role="C")
+    elif selected_role == "Teen":
+        members = Member.objects.filter(role="Teen")
+    elif selected_role == "Worker":
+        members = Member.objects.filter(role="Worker")
+    elif selected_role == "New_Member":
+        members = NewMember.objects.all()
+    else:
+        members = Member.objects.all()
             
 
     # Get members based on role and department
