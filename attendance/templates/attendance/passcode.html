@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Enter Passcode — Attendance</title>
+    <link rel="stylesheet" href="{% static 'attendance/css/styles.css' %}" />
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="brand">
+                <h1>COTGlobal Attendance</h1>
+                <p class="lead">Enter your passcode to continue.</p>
+            </div>
+        </header>
+
+        <main class="panel">
+            <form method="POST" action="{% url 'check_passcode' %}" class="controls">
+                {% csrf_token %}
+                <label for="passcode">Passcode</label>
+                <input id="passcode" type="password" name="passcode" class="input" required placeholder="Enter passcode" />
+
+                <button type="submit" class="btn">Submit</button>
+
+                {% if error  %}
+                    <p style="color:red; font-weight:bold;">{{ error }}</p>
+                {% endif %}
+            </form>
+        </main>
+
+        <footer class="footer">
+            You need a valid passcode to access this section.
+        </footer>
+    </div>
+</body>
+</html>

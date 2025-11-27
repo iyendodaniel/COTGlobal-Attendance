@@ -1,0 +1,220 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Existing-member — Add Member</title>
+  <link rel="stylesheet" href="{% static 'attendance/css/styles.css' %}" />
+  <style>
+    /* Backup hiding in case CSS doesn’t load */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="brand">
+        <h1>Existing-member</h1>
+        <p class="lead">Add an Existing-member quickly.</p>
+      </div>
+      <nav class="nav">
+        <a href="{% url 'home' %}">Home</a>
+        <a href="{% url 'new_member' %}">New-member</a>
+        <a href="{% url 'existing_member' %}" class="active">Existing-member</a>
+        <a href="{% url 'complete_profile' %}">Complete Profile</a>
+        <a href="{% url 'admin' %}">Admin</a>
+        <a href="{% url 'download_page' %}">Download</a>
+      </nav>
+    </header>
+    <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Logout</button>
+    </form>
+
+    <main class="panel">
+      <h2 class="h2">Existing-member Form</h2>
+
+      <form id="form" class="form" method="POST" novalidate>
+        {% csrf_token %}
+        <div class="grid">
+          <!-- Name -->
+          <div class="field">
+            <label for="name">Full name</label>
+            <input id="name" name="name" class="input" required minlength="2" required/>
+            <p class="error" data-err="name"></p>
+          </div>
+
+          <!-- Role -->
+          <div class="field">
+            <label for="roleSelect">Role</label>
+            <select id="roleSelect" name="role" class="input" style="color:#4960aa;" required>
+              <option value="">Select Role</option>
+              <option value="Worker">Worker</option>
+              <option value="Teen">Teen</option>
+              <option value="Child">Child</option>
+            </select>
+            <p class="error" data-err="role"></p>
+          </div>
+
+          <!-- Gender -->
+          <div class="field hidden" id="genderDiv">
+            <label for="gender">Gender</label>
+            <select id="gender" name="gender" class="input" style="color:#4960aa;">
+              <option value="">Select gender</option>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+            </select>
+          </div>
+
+          <!-- Phone -->
+          <div class="field hidden" id="phoneDiv">
+            <label for="phone">Phone number</label>
+            <input id="phone" name="phone_number" class="input" type="tel"
+                   pattern="^[0-9 \-()+]{6,}$"/>
+          </div>
+
+          <!-- Parent Name (Child) -->
+          <div class="field hidden" id="parentNameDiv">
+            <label for="parent_name">Parent name</label>
+            <input id="parent_name" name="parent_name" class="input"/>
+          </div>
+
+          <!-- Parent Phone (Child) -->
+          <div class="field hidden" id="parentPhoneDiv">
+            <label for="parent_phone">Parent Phone number</label>
+            <input id="parent_phone" name="parent_phone" class="input"
+                   type="tel" pattern="^[0-9 \-()+]{6,}$"/>
+          </div>
+
+          <!-- Age (Child) -->
+          <div class="field hidden" id="ageDiv">
+            <label for="age">Age</label>
+            <input id="age" name="age" class="input" type="number" min="1" max="18"/>
+          </div>
+
+          <!-- Department (Worker) -->
+          <div class="field hidden" id="departmentDiv">
+            <label for="department">Department</label>
+            <select id="department" name="department" class="input" style="color:#4960aa;">
+              <option value="">Select Department</option>
+              <option value="Ambassadors">Ambassadors</option>
+              <option value="Callers Team">Callers Team</option>
+              <option value="Chapel 121 Hostess">Chapel 121 Hostess</option>
+              <option value="Communion Stewards">Communion Stewards</option>
+              <option value="Dunamis Drama Team">Dunamis Drama Team</option>
+              <option value="Evangelism Team">Evangelism Team</option>
+              <option value="Followup Team">Followup Team</option>
+              <option value="Global Aflame">Global Aflame</option>
+              <option value="Greeters">Greeters</option>
+              <option value="Heritage Teachers">Heritage Teachers</option>
+              <option value="Information Desk Team">Information Desk Team</option>
+              <option value="Legal Team">Legal Team</option>
+              <option value="Marshal Team">Marshal Team</option>
+              <option value="Media Team">Media Team</option>
+              <option value="Medical Team">Medical Team</option>
+              <option value="Membership Academy Team">Membership Academy Team</option>
+              <option value="New Converts Team">New Converts Team</option>
+              <option value="Papa's Outreach Team">Papa's Outreach Team</option>
+              <option value="Pastor's Care Team">Pastor's Care Team</option>
+              <option value="Prayer Team">Prayer Team</option>
+              <option value="Presbytery">Presbytery</option>
+              <option value="Protocol Team">Protocol Team</option>
+              <option value="Sanctuary">Sanctuary</option>
+              <option value="Social Media Team">Social Media Team</option>
+              <option value="Sound Team">Sound Team</option>
+              <option value="Sports Team">Sports Team</option>
+              <option value="Teen Exousia Teachers">Teen Exousia Teachers</option>
+              <option value="Ushering Team">Ushering Team</option>
+              <option value="Welfare Team">Welfare Team</option>
+              <option value="Yoruba Church">Yoruba Church</option>
+            </select>
+          </div>
+
+        </div>
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <div class="actions" style="margin-top: 12px">
+          <button type="submit" class="btn">Submit & Mark Present</button>
+          <button type="button" id="clear" class="btn ghost">Clear</button>
+        </div>
+
+      </form>
+    </main>
+  </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+    const role = document.getElementById("roleSelect");
+
+    const genderDiv = document.getElementById("genderDiv");
+    const phoneDiv = document.getElementById("phoneDiv");
+    const parentNameDiv = document.getElementById("parentNameDiv");
+    const parentPhoneDiv = document.getElementById("parentPhoneDiv");
+    const ageDiv = document.getElementById("ageDiv");
+    const departmentDiv = document.getElementById("departmentDiv");
+
+    const phone = document.getElementById("phone");
+    const parent_phone = document.getElementById("parent_phone");
+    const parent_name = document.getElementById("parent_name");
+    const age = document.getElementById("age");
+    const gender = document.getElementById("gender");
+    const department = document.getElementById("department");
+
+    function hideAll() {
+        console.log("Hiding all optional fields...");
+        [genderDiv, phoneDiv, parentNameDiv, parentPhoneDiv, ageDiv, departmentDiv]
+            .forEach(div => div.classList.add("hidden"));
+
+        phone.required = false;
+        parent_phone.required = false;
+        parent_name.required = false;
+        age.required = false;
+        gender.required = false;
+        department.required = false;
+    }
+
+    hideAll();
+
+    role.addEventListener("change", () => {
+        hideAll();
+        console.log("Role selected:", role.value);
+
+        if(role.value === "Child") {
+            genderDiv.classList.remove("hidden");
+            parentNameDiv.classList.remove("hidden");
+            parentPhoneDiv.classList.remove("hidden");
+            ageDiv.classList.remove("hidden");
+
+            gender.required = true;
+            parent_name.required = true;
+            parent_phone.required = true;
+            age.required = true;
+        } else if(role.value === "Teen") {
+            genderDiv.classList.remove("hidden");
+            phoneDiv.classList.remove("hidden");
+
+            gender.required = true;
+            phone.required = true;
+        } else if(role.value === "Worker") {
+            genderDiv.classList.remove("hidden");
+            phoneDiv.classList.remove("hidden");
+            departmentDiv.classList.remove("hidden");
+
+            gender.required = true;
+            phone.required = true;
+            department.required = true;
+        }
+    });
+});
+</script>
+
+</body>
+</html>

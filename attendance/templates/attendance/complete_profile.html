@@ -1,0 +1,235 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Complete Profile — Members</title>
+  <link rel="stylesheet" href="{% static 'attendance/css/styles.css' %}" />
+</head>
+<body>
+<div class="container">
+  <header class="header">
+    <div class="brand">
+      <h1>Complete Profile</h1>
+      <p class="lead">Fill missing details for members.</p>
+    </div>
+    <nav class="nav">
+      <a href="{% url 'home' %}">Home</a>
+      <a href="{% url 'new_member' %}">New-member</a>
+      <a href="{% url 'existing_member' %}">Existing-member</a>
+      <a href="{% url 'complete_profile' %}" class="active">Complete Profile</a>
+      <a href="{% url 'admin' %}">Admin</a>
+      <a href="{% url 'download_page' %}">Download</a>
+    </nav>
+  </header>
+  <form action="{% url 'logout' %}" method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Logout</button>
+  </form>
+
+  <main class="panel">
+    <h2>Select Member</h2>
+    <form method="POST" class="form">
+      {% csrf_token %}
+      <div class="grid">
+        <div class="field">
+          <label for="member">Member Name</label>
+          <select id="member" name="member" class="input" required style="color:#4960aa;">
+            <option value="">Select a member</option>
+            {% for member in members %}
+              <option value="{{ member.id }}"
+                data-role="{{ member.role }}"
+                data-phone="{{ member.phone_number|default:"" }}"
+                data-parent_name="{{ member.parent_name|default:"" }}"
+                data-parent_phone="{{ member.parent_phone_number|default:"" }}"
+                data-age="{{ member.age|default:"" }}"
+                data-gender="{{ member.gender|default:"" }}"
+                data-department="{{ member.department|default:"" }}"
+              >{{ member.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="actions">
+          <button type="button" id="search_member" class="btn">Search</button>
+        </div>
+      </div>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- Profile fields -->
+      <div id="profile-fields" style="display:none; margin-top:20px;">
+        <div class="field">
+          <label for="role">Role</label>
+          <input type="text" id="role" name="role" class="input" readonly />
+        </div>
+
+        <!-- Child Fields -->
+        <div id="child-fields" style="display:none;">
+          <div class="field">
+            <label for="parent_name">Parent Name</label>
+            <input id="parent_name" name="parent_name" class="input" />
+          </div>
+          <div class="field">
+            <label for="parent_phone">Parent Phone Number</label>
+            <input id="parent_phone" name="parent_phone" class="input" pattern="\d{10,15}" title="10-15 digits" />
+          </div>
+          <div class="field">
+            <label for="age">Age</label>
+            <input id="age" name="age" type="number" min="1" max="18" class="input" />
+          </div>
+          <div class="field">
+            <label for="gender_child">Gender</label>
+            <select id="gender_child" name="gender" class="input" style="color:#4960aa;">
+              <option value="">Select gender</option>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Teen Fields -->
+        <div id="teen-fields" style="display:none;">
+          <div class="field">
+            <label for="phone_teen">Phone Number</label>
+            <input id="phone_teen" name="phone_teen" class="input" pattern="\d{10,15}" title="10-15 digits" />
+          </div>
+          <div class="field">
+            <label for="gender_teen">Gender</label>
+            <select id="gender_teen" name="gender_teen" class="input" style="color:#4960aa;">
+              <option value="">Select gender</option>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Worker Fields -->
+        <div id="worker-fields" style="display:none;">
+          <div class="field">
+            <label for="phone_worker">Phone Number</label>
+            <input id="phone_worker" name="phone_worker" class="input" pattern="\d{10,15}" title="10-15 digits"/>
+          </div>
+          <div class="field">
+            <label for="gender_worker">Gender</label>
+            <select id="gender_worker" name="gender_worker" class="input" style="color:#4960aa;">
+              <option value="">Select gender</option>
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="department">Department</label>
+            <select id="department" disabled class="input" style="color:#4960aa;">
+              <option value="">Select Department</option>
+              {% for dept in departments %}
+                <option value="{{ dept }}"
+                  {% if selected_member and selected_member.department == dept %}
+                    selected
+                  {% endif %}
+                >{{ dept }}</option>
+              {% endfor %}
+            </select>
+            <!-- hidden input that will be submitted -->
+            <input type="hidden" id="department_hidden" name="department" value="{{ selected_member.department|default:'' }}">
+          </div>
+        </div>
+
+        <div class="actions">
+          <button type="submit" name="save_profile" class="btn">Save & Complete Profile</button>
+        </div>
+      </div>
+    </form>
+  </main>
+</div>
+
+<script>
+console.log("Script is running");
+const searchBtn = document.getElementById("search_member");
+const profileFields = document.getElementById("profile-fields");
+
+const childFields = document.getElementById("child-fields");
+const teenFields = document.getElementById("teen-fields");
+const workerFields = document.getElementById("worker-fields");
+
+searchBtn.addEventListener("click", () => {
+
+    document.querySelectorAll('.alert').forEach(el => el.style.display = 'none');
+
+    const select = document.getElementById("member");
+    const option = select.options[select.selectedIndex];
+
+    if (!option.value) return alert("Select a member first!");
+
+    profileFields.style.display = "block";
+    document.getElementById("role").value = option.dataset.role;
+
+    // hide all first
+    childFields.style.display = teenFields.style.display = workerFields.style.display = "none";
+
+    const role = option.dataset.role.toLowerCase();
+
+    if (role === "child" || role === "children") {
+        childFields.style.display = "block";
+        ["parent_name","parent_phone","age","gender_child"].forEach(id=>{
+            const el = document.getElementById(id);
+            const key = id==="gender_child"?"gender":id;
+            const value = option.dataset[key]||"";
+            el.value = (value && value!=="--") ? value : "";
+            el.readOnly = !!value;
+        });
+    }
+    else if (role==="teen") {
+        teenFields.style.display="block";
+        const mapping = {"phone_teen":"phone","gender_teen":"gender"};
+        Object.keys(mapping).forEach(id=>{
+            const el = document.getElementById(id);
+            const key = mapping[id];
+            const value = option.dataset[key]||"";
+            el.value = (value && value!=="--")? value : "";
+            el.readOnly = !!value;
+        });
+    }
+    else if (role === "worker") {
+        workerFields.style.display = "block";
+
+        const phoneEl = document.getElementById("phone_worker");
+        const genderEl = document.getElementById("gender_worker");
+        const deptEl = document.getElementById("department");
+
+        const phone = option.dataset.phone || "";
+        const gender = option.dataset.gender || "";
+        const department = option.dataset.department || "";
+
+        // set phone & gender
+        phoneEl.value = phone;
+        phoneEl.readOnly = !!phone;
+
+        genderEl.value = gender;
+        genderEl.disabled = !!gender;
+
+        // set department
+        let found = Array.from(deptEl.options).some(opt => opt.value === department);
+        if (!found && department) {
+            let newOption = document.createElement("option");
+            newOption.value = department;
+            newOption.text = department;
+            deptEl.add(newOption);
+        }
+        const hiddenDept = document.getElementById("department_hidden");
+
+        // set department
+        deptEl.value = department;
+        hiddenDept.value = department;
+
+        // disable dropdown if department exists
+        deptEl.disabled = !!department;
+    }
+});
+</script>
+</body>
+</html>

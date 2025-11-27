@@ -1,0 +1,28 @@
+# .gitignore
+.env
+/db
+
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Database
+db/
+*.sqlite3
+
+# Django migrations
+*/migrations/*.pyc
+*/migrations/__pycache__/
+*/migrations/*.py
+
+# OS / IDE files
+.DS_Store
+.idea/
+.vscode/

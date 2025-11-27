@@ -1,0 +1,94 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>COTGlobal Attendance — Home</title>
+  <link rel="stylesheet" href="{% static 'attendance/css/styles.css' %}">
+</head>
+<body>
+  <div class="container">
+    <!-- Header & Nav -->
+    <header class="header">
+      <div class="brand">
+        <h1>COTGlobal Attendance</h1>
+        <p class="lead">COTGlobal Attendance</p>
+      </div>
+      <nav class="nav">
+        <a href="{% url 'home' %}" class="active">Home</a>
+        <a href="{% url 'new_member' %}">New-member</a>
+        <a href="{% url 'existing_member' %}">Existing-member</a>
+        <a href="{% url 'complete_profile' %}">Complete Profile</a>
+        <a href="{% url 'admin' %}">Admin</a>
+        <a href="{% url 'download_page' %}">Download</a>
+      </nav>
+    </header>
+    <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Logout</button>
+    </form>
+
+    <!-- Main Panel -->
+    <main class="panel">
+      <!-- Search Section -->
+      <h2 class="h2">Search Attendance</h2>
+      <form method="GET" action="{% url 'home' %}" class="search-row" style="width:100%; max-width:1000px;">
+          <input name="q" class="input" placeholder="Search name or code" style="flex-grow:1; width:100%;" value="{{ query }}" required>
+          <button type="submit" class="btn">Search</button>
+      </form>
+      {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+
+      <!-- Table Section (Hidden by default, shows after search) -->
+      {% if members %}
+      <div id="results" class="table-zone" style="margin-top:16px;">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Serial</th>
+              <th>Role</th>
+              <th>Phone</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for member in members %}
+            <tr>
+              <td>{{ member.name }}</td>
+              <td>{{ member.serial_number }}</td>
+              <td>{{ member.role }}</td>
+              <td>{{ member.phone_number }}</td>
+              <td>
+                {% if member.today_marked %}
+                    <span style="color: green; font-weight: bold;">Already marked present</span>
+                {% else %}
+                    <form method="POST" action="{% url 'mark_present' member.id %}">
+                      {% csrf_token %}
+                      <button type="submit" class="btn">Mark Present</button>
+                    </form>
+                {% endif %}
+
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="small" style="text-align:center; margin-top:16px;">No members found.</p>
+      {% endif %}
+    </main>
+
+    <footer class="footer">
+      Open the other pages to add newcomers, view admin records, and download reports.
+    </footer>
+  </div>
+</body>
+</html>
