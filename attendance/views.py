@@ -57,7 +57,7 @@ def home(request):
     # Base queryset filtered by access level
     members = Member.objects.all()
     if access == 'children':
-        members = members.filter(role__iexact='child')
+        members = members.filter(role__iexact='Child')
     elif access == 'teens':
         members = members.filter(role__iexact='Teen')
     elif access == 'workers':
@@ -295,7 +295,7 @@ def complete_profile(request):
             role = request.POST.get("role").lower()
 
             # Map fields based on role
-            if role in ["child", "children"]:
+            if role in ["Child", "children"]:
                 parent_name = (request.POST.get("parent_name") or "").strip()
                 parent_phone = (request.POST.get("parent_phone") or "").strip()
                 age = (request.POST.get("age") or "").strip()
@@ -643,7 +643,7 @@ def download(request):
     access = request.session.get('access_level')
     if access == 'children':
         if selected_role == "Child":
-            members = Member.objects.filter(role="child")
+            members = Member.objects.filter(role="Child")
         elif selected_role == "Teen":
             error_message = "You are not an admin!"
             return render(request, "attendance/download.html", {
