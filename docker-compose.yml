@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: cotglobal-attendance
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist SQLite database
+      - sqlite_data:/app/data
+      # Mount static files for development (optional)
+      - ./attendance/static:/app/attendance/static:ro
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=cotglobal_attendance.settings
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/passcode/')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  sqlite_data:
+    driver: local
+

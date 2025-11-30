@@ -1,5 +1,6 @@
 # .gitignore
 .env
+.env.local
 /db
 
 # Python
@@ -15,6 +16,7 @@ env/
 
 # Database
 db/
+data/
 *.sqlite3
 
 # Django migrations
@@ -22,7 +24,13 @@ db/
 */migrations/__pycache__/
 */migrations/*.py
 
+# Django static files (collected)
+staticfiles/
+
 # OS / IDE files
 .DS_Store
 .idea/
 .vscode/
+
+# Logs
+*.log

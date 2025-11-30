@@ -10,7 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +25,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-hnhdo*t3!sd!8*3lk3%%qq(mm#_n^e+=76wbbth-t_t82em5-e'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = []
+# Allow all hosts in development, restrict in production via env var
+_allowed_hosts = os.environ.get('ALLOWED_HOSTS', '')
+if _allowed_hosts:
+    ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(',') if host.strip()]
+else:
+    # Default: allow all (for development/testing)
+    ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -42,6 +53,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -49,6 +61,22 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# CSRF trusted origins for Docker/production
+# Build from env var, or auto-generate from ALLOWED_HOSTS
+_csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+if _csrf_origins:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_origins.split(',') if origin.strip()]
+else:
+    # Auto-generate from ALLOWED_HOSTS for convenience
+    CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+    if ALLOWED_HOSTS and ALLOWED_HOSTS != ['*']:
+        for host in ALLOWED_HOSTS:
+            if host != '*':
+                CSRF_TRUSTED_ORIGINS.append(f'http://{host}')
+                CSRF_TRUSTED_ORIGINS.append(f'http://{host}:8000')
+                CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
+                CSRF_TRUSTED_ORIGINS.append(f'https://{host}:8000')
 
 ROOT_URLCONF = 'cotglobal_attendance.urls'
 
@@ -72,11 +100,21 @@ WSGI_APPLICATION = 'cotglobal_attendance.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+# Use /app/data for Docker volume persistence, fallback to project root for local dev
+
+DATABASE_PATH = os.environ.get('DATABASE_PATH', None)
+if DATABASE_PATH:
+    DB_FILE = Path(DATABASE_PATH)
+else:
+    # Check if running in Docker (data directory exists)
+    docker_db_path = BASE_DIR / 'data' / 'db.sqlite3'
+    local_db_path = BASE_DIR / 'db.sqlite3'
+    DB_FILE = docker_db_path if docker_db_path.parent.exists() else local_db_path
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': DB_FILE,
     }
 }
 
@@ -116,8 +154,31 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# WhiteNoise configuration for serving static files
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Security settings for production
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    # Only enable secure cookies if using HTTPS
+    USE_HTTPS = os.environ.get('USE_HTTPS', 'False').lower() in ('true', '1', 'yes')
+    CSRF_COOKIE_SECURE = USE_HTTPS
+    SESSION_COOKIE_SECURE = USE_HTTPS
+
+# For development/testing with wildcards, use more permissive CSRF
+if ALLOWED_HOSTS == ['*']:
+    CSRF_TRUSTED_ORIGINS = [
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+        'http://35.91.243.196:8000',  # Your server IP
+    ]
