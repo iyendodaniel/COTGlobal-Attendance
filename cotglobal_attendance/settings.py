@@ -30,11 +30,13 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-key-change-in-pro
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
 
-ALLOWED_HOSTS = [
-    host.strip() 
-    for host in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
-    if host.strip()
-]
+# Allow all hosts in development, restrict in production via env var
+_allowed_hosts = os.environ.get('ALLOWED_HOSTS', '')
+if _allowed_hosts:
+    ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(',') if host.strip()]
+else:
+    # Default: allow all (for development/testing)
+    ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -61,11 +63,20 @@ MIDDLEWARE = [
 ]
 
 # CSRF trusted origins for Docker/production
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:8000,http://127.0.0.1:8000').split(',')
-    if origin.strip()
-]
+# Build from env var, or auto-generate from ALLOWED_HOSTS
+_csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+if _csrf_origins:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in _csrf_origins.split(',') if origin.strip()]
+else:
+    # Auto-generate from ALLOWED_HOSTS for convenience
+    CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+    if ALLOWED_HOSTS and ALLOWED_HOSTS != ['*']:
+        for host in ALLOWED_HOSTS:
+            if host != '*':
+                CSRF_TRUSTED_ORIGINS.append(f'http://{host}')
+                CSRF_TRUSTED_ORIGINS.append(f'http://{host}:8000')
+                CSRF_TRUSTED_ORIGINS.append(f'https://{host}')
+                CSRF_TRUSTED_ORIGINS.append(f'https://{host}:8000')
 
 ROOT_URLCONF = 'cotglobal_attendance.urls'
 
@@ -159,5 +170,15 @@ if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
-    CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
+    # Only enable secure cookies if using HTTPS
+    USE_HTTPS = os.environ.get('USE_HTTPS', 'False').lower() in ('true', '1', 'yes')
+    CSRF_COOKIE_SECURE = USE_HTTPS
+    SESSION_COOKIE_SECURE = USE_HTTPS
+
+# For development/testing with wildcards, use more permissive CSRF
+if ALLOWED_HOSTS == ['*']:
+    CSRF_TRUSTED_ORIGINS = [
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+        'http://35.91.243.196:8000',  # Your server IP
+    ]
