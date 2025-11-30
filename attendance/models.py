@@ -8,7 +8,7 @@ class Member(models.Model):
     role = models.CharField(max_length=20)
     phone_number = models.CharField(max_length=20)
 
-    # Only required IF role = worker (we’ll validate this later)
+    # Only required IF role = worker (we'll validate this later)
     department = models.CharField(max_length=100, blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -20,6 +20,35 @@ class Member(models.Model):
     parent_name = models.CharField(max_length=100, blank=True, null=True)
     parent_phone_number = models.CharField(max_length=20, blank=True, null=True)
 
+    def save(self, *args, **kwargs):
+        """Auto-generate serial_number if not provided."""
+        if not self.serial_number:
+            # Get role prefix: C for Child, T for Teen, W for Worker
+            role_prefix = {
+                'child': 'C',
+                'teen': 'T',
+                'worker': 'W',
+            }.get(self.role.lower() if self.role else '', 'M')  # M for Member (default)
+            
+            # Get the next number for this role
+            last_member = Member.objects.filter(
+                serial_number__startswith=role_prefix
+            ).order_by('-serial_number').first()
+            
+            if last_member and last_member.serial_number:
+                try:
+                    # Extract number part and increment
+                    last_num = int(last_member.serial_number[1:])
+                    next_num = last_num + 1
+                except (ValueError, IndexError):
+                    next_num = 1
+            else:
+                next_num = 1
+            
+            # Format: C0001, T0042, W0103, etc.
+            self.serial_number = f"{role_prefix}{next_num:04d}"
+        
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.serial_number} — {self.name}"

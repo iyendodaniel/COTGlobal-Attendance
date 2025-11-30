@@ -8,7 +8,9 @@ import re, io, os
 from datetime import date, timedelta
 import pandas as pd
 from django.db.models import Prefetch
+from django.db.models.functions import ExtractYear, ExtractMonth
 from dotenv import load_dotenv
+from .constants import DEPARTMENTS
 
 # Create your views here.
 load_dotenv()
@@ -261,21 +263,10 @@ def complete_profile(request):
     members = Member.objects.filter(status_complete=False)
     selected_member = None
 
-    departments = [
-        "Ambassadors", "Callers Team", "Chapel 121 Hostess", "Communion Stewards",
-        "Dunamis Drama Team", "Evangelism Team", "Followup Team", "Global Aflame",
-        "Greeters", "Heritage Teachers", "Information Desk Team", "Legal Team",
-        "Marshal Team", "Media Team", "Medical Team", "Membership Academy Team",
-        "New Converts Team", "Papa's Outreach Team", "Pastor's Care Team",
-        "Prayer Team", "Presbytery", "Protocol Team", "Sanctuary",
-        "Social Media Team", "Sound Team", "Sports Team", "Teen Exousia Teachers",
-        "Ushering Team", "Welfare Team", "Yoruba Church"
-    ]
-
     def render_context():
         return render(request, "attendance/complete_profile.html", {
             "members": members,
-            "departments": departments,
+            "departments": DEPARTMENTS,
             "selected_member": selected_member,
         })
 
@@ -294,8 +285,8 @@ def complete_profile(request):
             selected_member = get_object_or_404(Member, id=member_id)
             role = request.POST.get("role").lower()
 
-            # Map fields based on role
-            if role in ["Child", "children"]:
+            # Map fields based on role (role is already lowercased)
+            if role in ["child", "children"]:
                 parent_name = (request.POST.get("parent_name") or "").strip()
                 parent_phone = (request.POST.get("parent_phone") or "").strip()
                 age = (request.POST.get("age") or "").strip()
@@ -305,28 +296,28 @@ def complete_profile(request):
                     messages.error(request, "Parent name is required.")
                     return render(request, "attendance/complete_profile.html", {
                         "members": members,
-                        "departments": departments,
+                        "departments": DEPARTMENTS,
                         "selected_member": selected_member,
                     })
                 if not parent_phone or not valid_phone(parent_phone):
                     messages.error(request, "Enter a valid parent phone number (10–15 digits).")
                     return render(request, "attendance/complete_profile.html", {
                         "members": members,
-                        "departments": departments,
+                        "departments": DEPARTMENTS,
                         "selected_member": selected_member,
                     })
                 if not age:
                     messages.error(request, "Age is required.")
                     return render(request, "attendance/complete_profile.html", {
                         "members": members,
-                        "departments": departments,
+                        "departments": DEPARTMENTS,
                         "selected_member": selected_member,
                     })
                 if not gender:
                     messages.error(request, "Gender is required.")
                     return render(request, "attendance/complete_profile.html", {
                         "members": members,
-                        "departments": departments,
+                        "departments": DEPARTMENTS,
                         "selected_member": selected_member,
                     })
 
@@ -343,14 +334,14 @@ def complete_profile(request):
                     messages.error(request, "Enter a valid phone number (10–15 digits).")
                     return render(request, "attendance/complete_profile.html", {
                         "members": members,
-                        "departments": departments,
+                        "departments": DEPARTMENTS,
                         "selected_member": selected_member,
                     })
                 if not gender:
                     messages.error(request, "Gender is required.")
                     return render(request, "attendance/complete_profile.html", {
                         "members": members,
-                        "departments": departments,
+                        "departments": DEPARTMENTS,
                         "selected_member": selected_member,
                     })
 
@@ -366,21 +357,21 @@ def complete_profile(request):
                     messages.error(request, "Enter a valid phone number (10–15 digits).")
                     return render(request, "attendance/complete_profile.html", {
                         "members": members,
-                        "departments": departments,
+                        "departments": DEPARTMENTS,
                         "selected_member": selected_member,
                     })
                 if not gender:
                     messages.error(request, "Gender is required.")
                     return render(request, "attendance/complete_profile.html", {
                         "members": members,
-                        "departments": departments,
+                        "departments": DEPARTMENTS,
                         "selected_member": selected_member,
                     })
                 if not department:
                     messages.error(request, "Department is required.")
                     return render(request, "attendance/complete_profile.html", {
                         "members": members,
-                        "departments": departments,
+                        "departments": DEPARTMENTS,
                         "selected_member": selected_member,
                     })
 
@@ -416,15 +407,30 @@ def admin(request):
 
     error_message = None
 
-    # All attendance
-    attendance_qs = Attendance.objects.all()
-    available_years = sorted(set(att.date.year for att in attendance_qs))
+    # Get available years efficiently using database aggregation
+    available_years = list(
+        Attendance.objects.annotate(year=ExtractYear('date'))
+        .values_list('year', flat=True)
+        .distinct()
+        .order_by('year')
+    )
 
-    # Dynamic months based on selected year
+    # Dynamic months based on selected year using database aggregation
     if selected_year:
-        available_months = sorted(set(att.date.month for att in attendance_qs if att.date.year == selected_year))
+        available_months = list(
+            Attendance.objects.filter(date__year=selected_year)
+            .annotate(month=ExtractMonth('date'))
+            .values_list('month', flat=True)
+            .distinct()
+            .order_by('month')
+        )
     else:
-        available_months = sorted(set(att.date.month for att in attendance_qs))
+        available_months = list(
+            Attendance.objects.annotate(month=ExtractMonth('date'))
+            .values_list('month', flat=True)
+            .distinct()
+            .order_by('month')
+        )
 
     # Filter members by role and department
     if selected_role:
@@ -453,8 +459,8 @@ def admin(request):
         if selected_month:
             months_to_check = [selected_month]  # Only the selected month
         else:
-            # All months that have attendance in that year
-            months_to_check = sorted(set(att.date.month for att in attendance_qs if att.date.year == selected_year))
+            # All months that have attendance in that year (reuse available_months)
+            months_to_check = available_months
 
         # Loop through each month to get Sundays
         for month in months_to_check:
@@ -470,27 +476,25 @@ def admin(request):
 
     attendance_dates.sort()  # Optional: to keep in chronological order
 
+    # Prefetch attendance for the date range to avoid N+1 queries
+    if attendance_dates:
+        members = members.prefetch_related(
+            Prefetch(
+                'attendance_set',
+                queryset=Attendance.objects.filter(date__in=attendance_dates),
+                to_attr='prefetched_attendance'
+            )
+        )
 
-    # Attach attendance marks
+    # Attach attendance marks efficiently using prefetched data
     for member in members:
-        member.marks = [member.attendance_set.filter(date=sunday).exists() for sunday in attendance_dates]
-
-    # Departments
-    departments = [
-        "Ambassadors", "Callers Team", "Chapel 121 Hostess", "Communion Stewards",
-        "Dunamis Drama Team", "Evangelism Team", "Followup Team", "Global Aflame",
-        "Greeters", "Heritage Teachers", "Information Desk Team", "Legal Team",
-        "Marshal Team", "Media Team", "Medical Team", "Membership Academy Team",
-        "New Converts Team", "Papa's Outreach Team", "Pastor's Care Team",
-        "Prayer Team", "Presbytery", "Protocol Team", "Sanctuary",
-        "Social Media Team", "Sound Team", "Sports Team", "Teen Exousia Teachers",
-        "Ushering Team", "Welfare Team", "Yoruba Church"
-    ]
+        attended_dates = {att.date for att in getattr(member, 'prefetched_attendance', [])}
+        member.marks = [sunday in attended_dates for sunday in attendance_dates]
 
     return render(request, "attendance/admin.html", {
         "members": members,
         "attendance_dates": attendance_dates,
-        "departments": departments,
+        "departments": DEPARTMENTS,
         "selected_role": selected_role,
         "selected_department": selected_department,
         "selected_year": selected_year,
@@ -563,22 +567,10 @@ def download_page(request):
     # access = request.session.get('access_level')
     # if not access:
     #     return redirect('check_passcode')  # force passcode first
-        
 
-
-    departments = [
-        "Ambassadors", "Callers Team", "Chapel 121 Hostess", "Communion Stewards",
-        "Dunamis Drama Team", "Evangelism Team", "Followup Team", "Global Aflame",
-        "Greeters", "Heritage Teachers", "Information Desk Team", "Legal Team",
-        "Marshal Team", "Media Team", "Medical Team", "Membership Academy Team",
-        "New Converts Team", "Papa's Outreach Team", "Pastor's Care Team",
-        "Prayer Team", "Presbytery", "Protocol Team", "Sanctuary",
-        "Social Media Team", "Sound Team", "Sports Team", "Teen Exousia Teachers",
-        "Ushering Team", "Welfare Team", "Yoruba Church"
-    ]
     today = date.today()
     return render(request, "attendance/download.html", {
-        "departments": departments,
+        "departments": DEPARTMENTS,
         "selected_year": today.year,
         "selected_month": today.month,
         "selected_role": "",
@@ -601,27 +593,37 @@ def download(request):
     error_message = None
     success_message = None
 
-    attendance_qs = Attendance.objects.all()
-    available_years = sorted(set(att.date.year for att in attendance_qs))
-    available_months = sorted(set(att.date.month for att in attendance_qs if selected_year is None or att.date.year == selected_year))
-
-    departments = [
-        "Ambassadors", "Callers Team", "Chapel 121 Hostess", "Communion Stewards",
-        "Dunamis Drama Team", "Evangelism Team", "Followup Team", "Global Aflame",
-        "Greeters", "Heritage Teachers", "Information Desk Team", "Legal Team",
-        "Marshal Team", "Media Team", "Medical Team", "Membership Academy Team",
-        "New Converts Team", "Papa's Outreach Team", "Pastor's Care Team",
-        "Prayer Team", "Presbytery", "Protocol Team", "Sanctuary",
-        "Social Media Team", "Sound Team", "Sports Team", "Teen Exousia Teachers",
-        "Ushering Team", "Welfare Team", "Yoruba Church"
-    ]
+    # Get available years efficiently using database aggregation
+    available_years = list(
+        Attendance.objects.annotate(year=ExtractYear('date'))
+        .values_list('year', flat=True)
+        .distinct()
+        .order_by('year')
+    )
+    
+    # Get available months using database aggregation
+    if selected_year:
+        available_months = list(
+            Attendance.objects.filter(date__year=selected_year)
+            .annotate(month=ExtractMonth('date'))
+            .values_list('month', flat=True)
+            .distinct()
+            .order_by('month')
+        )
+    else:
+        available_months = list(
+            Attendance.objects.annotate(month=ExtractMonth('date'))
+            .values_list('month', flat=True)
+            .distinct()
+            .order_by('month')
+        )
 
     access = request.session.get('access_level')
 
     if access != "admin":
         error_message = "You are not allowed to download files!"
         return render(request, "attendance/download.html", {
-            "departments": departments,
+            "departments": DEPARTMENTS,
             "selected_role": selected_role,
             "selected_department": selected_department,
             "selected_year": selected_year,
@@ -652,11 +654,11 @@ def download(request):
 
         # Admin can see all
     if selected_role == "Child":
-        members = Member.objects.filter(role="C")
+        members = Member.objects.filter(role__iexact="Child")
     elif selected_role == "Teen":
-        members = Member.objects.filter(role="Teen")
+        members = Member.objects.filter(role__iexact="Teen")
     elif selected_role == "Worker":
-        members = Member.objects.filter(role="Worker")
+        members = Member.objects.filter(role__iexact="Worker")
     elif selected_role == "New_Member":
         members = NewMember.objects.all()
     else:
@@ -683,7 +685,7 @@ def download(request):
     if not attendance_exists:
         error_message = f"No {selected_role} attendance found for {selected_month}-{selected_year}!"
         return render(request, "attendance/download.html", {
-            "departments": departments,
+            "departments": DEPARTMENTS,
             "selected_role": selected_role,
             "selected_department": selected_department,
             "selected_year": selected_year,
@@ -748,13 +750,10 @@ def download(request):
     except Exception as e:
         error_message = f"Unable to download attendance! Error: {e}"
 
-    # Departments for template (if needed)
-    
-
     return render(request, "attendance/download.html", {
         "members": members,
         "attendance_dates": attendance_dates,
-        "departments": departments,
+        "departments": DEPARTMENTS,
         "selected_role": selected_role,
         "selected_department": selected_department,
         "selected_year": selected_year,
